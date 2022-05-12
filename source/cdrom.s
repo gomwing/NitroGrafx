@@ -268,7 +268,7 @@ noCDAudio:
 	strb r2,cdIrqReq
 
 ;@----------------------------------------------------------------------------
-CD_Check_IRQ:					;@ Don't use r0 as it may be used as return data.
+CD_Check_IRQ:					;@ Don`t use r0 as it may be used as return data.
 ;@----------------------------------------------------------------------------
 	ldrb r2,cdIrqMask
 	ldrb r1,cdIrqReq
@@ -894,6 +894,7 @@ adpcmRate:		.byte 0			;@ ADPCM playback rate ($180E)
 adpcmStatus:	.byte 0			;@ ADPCM busy status.
 adpcmDmaOn:		.byte 0			;@ ADPCM -> CD DMA on?
 cdAudioFade:	.byte 0			;@ CD Audio fade ($180F)
+cdDAStatus:		.byte 0			;@ gomwing
 cdAudioPlaying:	.byte 0			;@ Is cd audio playing?
 cdAudioRepeat:	.byte 0			;@ Should music repeat after completion?
 scsiPtr:		.byte 0			;@ Which byte of the command
@@ -1124,6 +1125,7 @@ CMD_Read6:
 	orr r0,r1,r0,lsl#8			;@
 	ldrb r1,[r2,#3]				;@ LBA3
 	orr r0,r1,r0,lsl#8
+
 	mov r1,r0,lsl#11
 	str r1,currentPos
 
@@ -1183,12 +1185,23 @@ writeSec:
 	bl CD_FindEnd
 
 notTrack:
-	ldrb r0,[r4,#1]				;@ To play or not.
-	strb r0,cdAudioPlaying
-	cmp r0,#1					;@ Repeat after completion?
-	cmpne r0,#4					;@ Repeat after completion?
-	movne r0,#0
+	ldrb r1,[r4,#1]				;@ To play or not.
+	cmp r1, 0
+	movne	r0, #3
+	moveq	r0, #2
+	strb r0,cdDAStatus
+	strb r1,cdAudioPlaying
+	//tst	 r1, #4
+	//movne r0,#1					;@ Repeat after completion?
+	moveq r0,#0
 	strb r0,cdAudioRepeat
+
+	//ldrb r0,[r4,#1]				;@ To play or not.
+	//strb r0,cdAudioPlaying
+	//cmp r0,#1					;@ Repeat after completion?
+	//cmpne r0,#4					;@ Repeat after completion?
+	//movne r0,#0
+	//strb r0,cdAudioRepeat
 	mov r1,#0xD8				;@ No data only status
 	strb r1,scsiSignal
 	mov r1,#0
@@ -1245,8 +1258,8 @@ foundDataTrack:
 CMD_PlayCD2:
 	stmfd sp!,{r3-r5,lr}
 
-	mov r0,#0					;@ Audio must be stopped before we can seek.
-	strb r0,cdAudioPlaying
+	//mov r0,#0					;@ Audio must be stopped before we can seek.
+	//strb r0,cdAudioPlaying
 	adrl r4,scsiCmd
 	ldrb r2,[r4,#9]				;@ LBA, Tracks or MSF
 	ands r2,r2,#0xC0
@@ -1279,12 +1292,27 @@ writeSec2:
 	str r0,sectorEnd
 
 notTrack2:
-	ldrb r0,[r4,#1]				;@ To play or not.
-	strb r0,cdAudioPlaying
-	cmp r0,#1					;@ Repeat after completion?
-	cmpne r0,#4					;@ Repeat after completion?
-	movne r0,#0
+	ldrb r1,[r4,#1]				;@ To play or not.
+	cmp	r1,#0
+	moveq	r0, #3
+	movne	r0, #0
+	strb r0,cdDAStatus
+	
+	tst	 r1, #2
+	movne	r0, #1
+	strb r1,cdAudioPlaying
+	tst	 r1, #4
+	movne r0,#1					;@ Repeat after completion?
+	moveq r0,#0
 	strb r0,cdAudioRepeat
+
+//	ldrb r0,[r4,#1]				;@ To play or not.
+//	strb r0,cdAudioPlaying
+//	cmp r0,#1					;@ Repeat after completion?
+//	cmpne r0,#4					;@ Repeat after completion?
+//	movne r0,#0
+//	strb r0,cdAudioRepeat
+
 	mov r1,#0xD8				;@ No data only status
 	strb r1,scsiSignal
 	mov r1,#0
@@ -1317,31 +1345,46 @@ CMD_SubQ:
 ;@	mov r11,r11					;@ No$GBA Debugg
 	stmfd sp!,{r3-r5,lr}
 	adrl r5,scsiResponse
-	ldrb r0,cdAudioPlaying
-	cmp r0,#0
-	movne r0,#0					;@ 0 if playing, 1 paused, 2 (search?) paused, 3 complete (stopped?).
-	moveq r0,#0x03				;@ 3 if not playing.
-//	ldr r1,cdSeekTime
-//	cmp r1,#0
-//	movne r0,#0x01
-	strb r0,[r5]				;@ CTRL & ADR, BIOS want's this to be 0 before a Pause.
 	mov r0,#0x00
 	strb r0,[r5,#1]				;@ Preemphasis, digital copy, 2ch/4ch, music/data????
 
-	ldr r0,sectorPtr
-	mov r0,r0,lsr#2				;@ Throw away the lowest bits.
-	bl LBA2Track				;@ r0 in & out
+	//ldrb r1,cdAudioPlaying
+	//mov r0,#0x03	
+	//cmp r1,#1
+	//moveq r0,#2					//
+	//cmp r1,#0
+	//moveq r0,#0x03	
+	//cmp r0,#0
+	ldrb r0, cdDAStatus
+	strb r0,[r5]				;@ CTRL & ADR, BIOS want`s this to be 0 before a Pause.
+
+	//movne r0,#0					;@ 0 if playing, 1 paused, 2 (search?) paused, 3 complete (stopped?).
+	//m//oveq r0,#0x03				;@ 3 if not playing.
+//	ldr r1,cdSeekTime
+//	cmp r1,#0
+//	movne r0,#0x01
+//	strb r0,[r5]				;@ CTRL & ADR, BIOS want`s this to be 0 before a Pause.
+
+	ldr r0,currentPos
+	sub	r0, r0, #1
+	mov r0,r0,lsr#11			;@ Throw away the lowest bits.
 	mov r4,r0
+	bl LBA2Track				;@ r0 in & out
+	//mov r4,r0
 	bl Hex2Bcd
 	strb r0,[r5,#2]				;@ Track in BCD
 	mov r1,#0x01
 	strb r1,[r5,#3]				;@ Index (allways 1 for data track)
 
-	mov r0,r4
+
 	bl Track2LBA				;@ r0 in & out
-	ldr r4,sectorPtr
-	rsb r0,r0,r4,lsr#2			;@ Calculate sectors into this track.
-	sub r0,r0,#150				;@ As this is only relative.
+	sub r0, r4, r0
+	//mov r0,r4
+	// bl Track2LBA				;@ r0 in & out
+	//ldr r4,sectorPtr		//																		<- gomwing
+	//sub r0,r0, r4,lsr#2		//rsb r0,r0,r4,lsr#2			;@ Calculate sectors into this track.	<- gomwing
+	//add r0,r0,#150			//sub r0,r0,#150				;@ As this is only relative.			<- gomwing		  
+	
 	bl LBA2MSF					;@ r0 in & out
 	strb r0,[r5,#6]				;@ Track Frames
 	mov r0,r0,lsr#8
@@ -1351,6 +1394,7 @@ CMD_SubQ:
 
 	ldr r0,sectorPtr
 	mov r0,r0,lsr#2				;@ Throw away the lowest bits.
+	add r0,r0, #150
 	bl LBA2MSF					;@ r0 in & out
 	strb r0,[r5,#9]				;@ Absolute Frames
 	mov r0,r0,lsr#8
@@ -1420,7 +1464,7 @@ totalTime:
 	orr r0,r2,r0,lsl#8
 	ldrb r2,[r4,#0x0F]
 	orr r0,r2,r0,lsl#8
-
+	add r0,r0, #150				// gomwing added
 	bl LBA2MSF
 
 	strb r0,scsiResponse+2		;@ Frames
@@ -1455,6 +1499,7 @@ trackInfo:
 	strb r1,scsiResponse+3
 
 	bl Track2LBA				;@ r0 in & out
+	add r0, r0, #150			// gomwing added
 	bl LBA2MSF					;@ r0 in & out
 
 	strb r0,scsiResponse+2		;@ Frames
@@ -1472,7 +1517,7 @@ LBA2MSF:					;@ r0 input & output, uses r1-r3.
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r4-r5,lr}
 
-	add r0,r0,#150				;@ MSF is 150 more than LBA
+	//add r0,r0,#150			//gomwing subtracted	;@ MSF is 150 more than LBA
 
 	ldr r1,=4500				;@ Number of frames in a minute
 	swi 0x090000				;@ Division r0/r1, r0=result, r1=remainder.

@@ -123,7 +123,7 @@ loadCart: 		;@ called from C:
 	bl checkMachine
 
 	ldr r3,=ROM_Space
-								;@ r3=rombase til end of loadcart so DON'T FUCK IT UP
+								;@ r3=rombase til end of loadcart so DON`T FUCK IT UP
 	str r3,romBase				;@ Set rom base
 
 	ldr r1,g_ROM_Size
@@ -430,7 +430,7 @@ packState:	;@ Called from gui.c.
 	ldr h6280optbl,=h6280OpTable
 
 	mov r5,r0					;@ r5=where to copy state
-	bl fixCpuPCSave				;@ adjust h6280pc so it isn't based on rombase
+	bl fixCpuPCSave				;@ adjust h6280pc so it isn`t based on rombase
 
 	mov r0,#0					;@ r0 holds total size (return value)
 
